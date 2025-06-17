@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Speed Test</title>
+    <style>
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ffffff;
+            border-radius: 5px;
+        }
+        .speed-display {
+            font-size: 24px;
+            margin: 20px 0;
+        }
+        button {
+            background-color: #ffffff;
+            color: #000000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #dddddd;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #333333;
+            border-radius: 5px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .progress {
+            height: 100%;
+            background-color: #ffffff;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WiFi Speed Test</h1>
+        
+        <div class="test-section">
+            <h2>Download Speed</h2>
+            <div class="speed-display" id="download-speed">0 Mbps</div>
+            <div class="progress-bar">
+                <div class="progress" id="download-progress"></div>
+            </div>
+            <button onclick="startDownloadTest()">Start Download Test</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>Upload Speed</h2>
+            <div class="speed-display" id="upload-speed">0 Mbps</div>
+            <div class="progress-bar">
+                <div class="progress" id="upload-progress"></div>
+            </div>
+            <button onclick="startUploadTest()">Start Upload Test</button>
+        </div>
+    </div>
+
+    <script>
+        // Function to format speed in Mbps
+        function formatSpeed(bytes, seconds) {
+            const bits = bytes * 8;
+            const megabits = bits / (1024 * 1024);
+            const speed = (megabits / seconds).toFixed(2);
+            return speed + " Mbps";
+        }
+
+        // Download Test
+        function startDownloadTest() {
+            const downloadSpeedElement = document.getElementById('download-speed');
+            const downloadProgressElement = document.getElementById('download-progress');
+            
+            downloadSpeedElement.textContent = "Testing...";
+            downloadProgressElement.style.width = "0%";
+
+            // Use a file of known size (e.g., 10MB) for testing
+            const fileSize = 10 * 1024 * 1024; // 10MB in bytes
+            const testFileUrl = `https://httpbin.org/bytes/${fileSize}`; // Replace with a reliable server
+
+            const startTime = performance.now();
+            fetch(testFileUrl)
+                .then(response => {
+                    const reader = response.body.getReader();
+                    let receivedBytes = 0;
+                    const chunks = [];
+
+                    function readChunk() {
+                        return reader.read().then(({ done, value }) => {
+                            if (done) {
+                                const endTime = performance.now();
+                                const duration = (endTime - startTime) / 1000; // in seconds
+                                const speed = formatSpeed(fileSize, duration);
+                                downloadSpeedElement.textContent = speed;
+                                downloadProgressElement.style.width = "100%";
+                                return;
+                            }
+
+                            chunks.push(value);
+                            receivedBytes += value.length;
+                            const progress = (receivedBytes / fileSize) * 100;
+                            downloadProgressElement.style.width = `${progress}%`;
+
+                            return readChunk();
+                        });
+                    }
+
+                    return readChunk();
+                })
+                .catch(error => {
+                    downloadSpeedElement.textContent = "Error: " + error.message;
+                });
+        }
+
+        // Upload Test
+        function startUploadTest() {
+            const uploadSpeedElement = document.getElementById('upload-speed');
+            const uploadProgressElement = document.getElementById('upload-progress');
+            
+            uploadSpeedElement.textContent = "Testing...";
+            uploadProgressElement.style.width = "0%";
+
+            // Create a dummy file of known size (e.g., 5MB) for testing
+            const fileSize = 5 * 1024 * 1024; // 5MB in bytes
+            const dummyData = new Uint8Array(fileSize).fill(0); // Fill with zeros
+
+            const formData = new FormData();
+            const blob = new Blob([dummyData], { type: 'application/octet-stream' });
+            formData.append('file', blob, 'dummy.bin');
+
+            const startTime = performance.now();
+            fetch('https://httpbin.org/post', {
+                method: 'POST',
+                body: formData,
+            })
+                .then(response => response.json())
+                .then(() => {
+                    const endTime = performance.now();
+                    const duration = (endTime - startTime) / 1000; // in seconds
+                    const speed = formatSpeed(fileSize, duration);
+                    uploadSpeedElement.textContent = speed;
+                    uploadProgressElement.style.width = "100%";
+                })
+                .catch(error => {
+                    uploadSpeedElement.textContent = "Error: " + error.message;
+                });
+        }
+    </script>
+</body>
+</html>
